@@ -1,7 +1,7 @@
 """
 Authentication-related endpoints (registration, login).
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from datetime import timedelta
 
@@ -10,7 +10,9 @@ from app.core.security import get_password_hash, verify_password, create_access_
 from app.core.config import settings
 from app.models.user import User
 from app.schemas.user import UserCreate, UserLogin
-from app.schemas.auth import RegisterResponse, LoginResponse, ErrorResponse
+from app.schemas.auth import RegisterResponse, LoginResponse, ErrorResponse, LoginRequest, Verify2FARequest
+from app.services.twofa_service import send_2fa_code_via_email, verify_code, generate_tmp_token
+from jose import jwt, JWTError, ExpiredSignatureError
 
 router = APIRouter()
 
@@ -76,84 +78,59 @@ async def register(
     )
 
 
-@router.post(
-    "/login",
-    response_model=LoginResponse,
-    summary="User login",
-    responses={
-        200: {"description": "Successful login, JWT token returned"},
-        401: {"model": ErrorResponse, "description": "Invalid email or password"},
-    }
-)
-async def login(
-    user_credentials: UserLogin,
-    db: Session = Depends(get_db)
-):
-    """
-    Log user into the system.
-    
-    **Process:**
-    1. Input data validation
-    2. Check if user exists in database
-    3. Verify password (compare with bcrypt hash)
-    4. Generate JWT token
-    5. Return access token
-    
-    **Parameters:**
-    - **email**: User email address
-    - **password**: User password
-    
-    **Returns:**
-    - **access_token**: JWT token for authorization
-    - **token_type**: Token type (bearer)
-    - **user_id**: Logged-in user ID
-    - **email**: User email
-    
-    **Token usage:**
-    ```
-    Authorization: Bearer {access_token}
-    ```
-    """
-    # Check if user exists
-    user = db.query(User).filter(User.email == user_credentials.email).first()
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Verify password
-    if not verify_password(user_credentials.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Check if account is active
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User account is inactive"
-        )
-    
-    # Create JWT token
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
+# -----------------------------
+# LOGIN (STEP 1 — send 2FA)
+# -----------------------------
+@router.post("/login")
+async def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+
+    if not user or not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Send 2FA code
+    await send_2fa_code_via_email(user)
+
+    # Create tmp token
+    tmp_token = generate_tmp_token(user.id)
+
+    return {"detail": "2fa_required", "tmp_token": tmp_token}
+
+
+# -----------------------------
+# VERIFY 2FA (STEP 2 — get JWT)
+# -----------------------------
+@router.post("/verify-2fa")
+async def verify_2fa(payload: Verify2FARequest, request: Request, db: Session = Depends(get_db)):
+    try:
+        decoded = jwt.decode(payload.tmp_token, settings.SECRET_KEY, algorithms=["HS256"])
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="tmp_token has expired")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid tmp_token")
+
+    user_id = decoded.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Invalid tmp_token")
+
+    ip = request.client.host
+
+    await verify_code(user_id, payload.code, ip)
+
+    # produce final JWT
+    user = db.query(User).filter(User.id == user_id).first()
+
+    token = create_access_token(
         data={"sub": user.email},
-        expires_delta=access_token_expires
-    )
-    
-    return LoginResponse(
-        access_token=access_token,
-        token_type="bearer",
-        user_id=user.id,
-        email=user.email
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
 
+    return {"access_token": token, "token_type": "bearer"}
 
+
+# -----------------------------
+# LOGOUT
+# -----------------------------
 @router.post(
     "/logout",
     status_code=status.HTTP_200_OK,

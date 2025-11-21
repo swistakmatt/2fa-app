@@ -17,10 +17,13 @@ python-multipart==0.0.6
 # Environment variables
 python-dotenv==1.0.0
 
-# Email (for future 2FA implementation)
+# Email
 fastapi-mail==1.4.1
 
-# TOTP (for future 2FA implementation)
+# Redis
+redis==5.0.1
+
+# 2FA (not TOTP, but useful)
 pyotp==2.9.0
 
 # Testing

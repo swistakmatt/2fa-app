@@ -34,3 +34,11 @@ class RegisterResponse(BaseModel):
 class ErrorResponse(BaseModel):
     """Schema for error response."""
     detail: str = Field(..., description="Error details")
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class Verify2FARequest(BaseModel):
+    tmp_token: str
+    code: str
