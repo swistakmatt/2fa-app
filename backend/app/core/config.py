@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     """
     Application settings loaded from environment variables.
     """
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
+    model_config = SettingsConfigDict(env_file=".env", extra="allow", case_sensitive=True)
     # Application
     APP_NAME: str = "2FA Application"
     DEBUG: bool = True
