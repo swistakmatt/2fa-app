@@ -1,14 +1,16 @@
 # Quick Start Guide - 2FA Application
 
-This guide will help you quickly run the application on your Windows system.
+🚀 **Fastest way to run:** Use Docker! ⚡
+
+This guide will help you quickly run the full-stack 2FA application (Backend + Frontend) on your Windows system.
 
 ## Prerequisites
 
 Before starting, make sure you have installed:
 
-- ✅ Python 3.10 or newer
-- ✅ **Docker Desktop** (recommended) OR PostgreSQL 14+
+- ✅ **Docker Desktop** (recommended - easiest option!)
 - ✅ Git
+- ✅ Python 3.11+ (only if running without Docker)
 
 ## Step 1: Clone Repository
 
@@ -17,22 +19,71 @@ git clone https://github.com/swistakmatt/2fa-app.git
 cd 2fa-app
 ```
 
-## Step 2: Run PostgreSQL
+## Step 2: Run Full Application with Docker 🐳 (RECOMMENDED)
 
-### Option A: Docker (Recommended - easiest!) 🐳
+### Complete Stack in One Command!
 
 ```powershell
-# Run PostgreSQL in Docker container
-docker-compose up -d postgres
+# Start ALL services: postgres, redis, mailhog, backend, frontend
+docker-compose up -d
 ```
 
-Database is ready! Connection string:
+This starts:
+
+- ✅ **PostgreSQL** - Database (port 5432)
+- ✅ **Redis** - 2FA code storage (port 6379)
+- ✅ **MailHog** - Email viewer (port 8025)
+- ✅ **Backend API** - FastAPI (port 8000)
+- ✅ **Frontend** - Streamlit (port 8501)
+- ✅ **pgAdmin** - Database admin (port 5050)
+
+### Access the Application
+
+```powershell
+# Wait ~30 seconds for migrations to complete, then:
+```
+
+- **Frontend App**: http://localhost:8501
+- **Backend API Docs**: http://localhost:8000/docs
+- **MailHog (View 2FA Emails)**: http://localhost:8025 ⭐
+- **pgAdmin**: http://localhost:5050
+
+### Testing the Application
+
+1. **Open Frontend**: http://localhost:8501
+2. **Register**: Click "Zarejestruj się" and create account
+3. **Login**: Enter your email and password
+4. **Check Email**: Open http://localhost:8025 to see 2FA code
+5. **Verify**: Enter the 6-digit code
+6. **Profile**: You're logged in! 🎉
+
+### Stop Application
+
+```powershell
+# Stop all services
+docker-compose down
+
+# Stop and remove all data (fresh start)
+docker-compose down -v
+```
+
+---
+
+## Alternative: Local Development (Without Docker)
+
+### Option A: Run Individual Services with Docker
+
+```powershell
+# Run only infrastructure (postgres, redis, mailhog)
+docker-compose up -d postgres redis mailhog
+```
+
+Database connection string:
 
 ```
 DATABASE_URL=postgresql://postgres:postgres123@localhost:5432/2fa_app_db
+REDIS_URL=redis://localhost:6379/0
 ```
-
-📚 More information: see `DOCKER.md` file
 
 ### Option B: Local PostgreSQL
 
@@ -117,33 +168,60 @@ uvicorn app.main:app --reload
 
 🎉 **Backend is running!** Open browser: http://localhost:8000/docs
 
-## Step 4: API Testing
+## Step 4: Understanding the 2FA Flow
 
-### User registration
+### Why MailHog? 📧
 
-In Swagger UI (http://localhost:8000/docs) or via cURL:
+**MailHog** is a development email testing tool that catches all outgoing emails. Instead of sending real emails to Gmail/Outlook, MailHog:
+
+✅ **Captures emails locally** - View at http://localhost:8025
+✅ **No configuration needed** - Works out of the box
+✅ **Fast testing** - Instant email delivery
+✅ **Safe** - Won't spam real email addresses
+✅ **Perfect for development** - See all sent emails in one place
+
+### 2FA Email Flow
+
+1. **Register** → User creates account (no email sent)
+2. **Login** → Backend generates 6-digit code → Sends to MailHog
+3. **Check MailHog** → Open http://localhost:8025 → Copy code
+4. **Verify** → Enter code → Receive JWT token
+5. **Authenticated** → Access profile
+
+### When to Use Real Gmail?
+
+**MailHog is for DEVELOPMENT.** For production:
+
+1. Generate App Password: https://myaccount.google.com/apppasswords
+2. Update `backend/.env`:
+   ```env
+   MAIL_SERVER=smtp.gmail.com
+   MAIL_PORT=587
+   MAIL_USERNAME=your.email@gmail.com
+   MAIL_PASSWORD=your_16_char_app_password
+   MAIL_STARTTLS=True
+   ```
+3. Restart: `docker-compose restart backend`
+
+### API Testing (Optional)
+
+If using backend directly (Swagger UI at http://localhost:8000/docs):
 
 ```powershell
+# Register user
 curl -X POST "http://localhost:8000/api/auth/register" `
   -H "Content-Type: application/json" `
-  -d '{\"email\":\"test@example.com\",\"password\":\"testpass123\"}'
-```
+  -d '{\"email\":\"test@example.com\",\"password\":\"Admin123!abc\"}'
 
-### Login
-
-```powershell
+# Login (sends 2FA code)
 curl -X POST "http://localhost:8000/api/auth/login" `
   -H "Content-Type: application/json" `
-  -d '{\"email\":\"test@example.com\",\"password\":\"testpass123\"}'
-```
+  -d '{\"email\":\"test@example.com\",\"password\":\"Admin123!abc\"}'
 
-You will receive a JWT token that you can use for authorization.
-
-### Get profile
-
-```powershell
-curl -X GET "http://localhost:8000/api/user/profile" `
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+# Check MailHog for code, then verify
+curl -X POST "http://localhost:8000/api/auth/verify-2fa" `
+  -H "Content-Type: application/json" `
+  -d '{\"tmp_token\":\"TOKEN_FROM_LOGIN\",\"code\":\"123456\"}'
 ```
 
 ## Step 5: Run Tests
@@ -247,15 +325,52 @@ alembic init alembic
 ## 🎯 Project Status
 
 - [x] Project structure
-- [x] Database models
-- [x] Authentication endpoints
+- [x] Database models (User)
+- [x] Authentication endpoints (register, login, verify-2fa)
 - [x] Password hashing (bcrypt)
 - [x] JWT authorization
+- [x] 2FA via email (6-digit codes)
+- [x] Redis integration (code storage)
+- [x] Rate limiting and blocking
+- [x] Frontend (Streamlit with custom UI)
+- [x] Frontend-Backend integration
+- [x] Docker Compose deployment
+- [x] MailHog email testing
 - [x] Unit tests
-- [ ] 2FA via email
-- [ ] Frontend (Streamlit)
-- [ ] Deployment
+- [ ] Integration tests (automated)
+- [ ] Production deployment guide
+- [ ] Password reset functionality
 
----
+## 🏗️ Architecture
 
-**Need help?** Check `backend/README.md` for more detailed instructions.
+```
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│  Frontend   │─────▶│   Backend   │─────▶│  PostgreSQL │
+│ (Streamlit) │      │  (FastAPI)  │      │  Database   │
+│  Port 8501  │◀─────│  Port 8000  │      │  Port 5432  │
+└─────────────┘      └─────────────┘      └─────────────┘
+                            │
+                            │
+                     ┌──────┴──────┐
+                     ▼              ▼
+              ┌──────────┐   ┌──────────┐
+              │  Redis   │   │ MailHog  │
+              │ (Codes)  │   │ (Emails) │
+              │Port 6379 │   │Port 8025 │
+              └──────────┘   └──────────┘
+```
+
+## 👥 Development Team
+
+This application was built collaboratively:
+
+- **Backend Development**: FastAPI, PostgreSQL, Redis, 2FA service
+- **Frontend Development**: Streamlit UI, custom styling, routing
+- **Integration**: API handler, Docker configuration
+- **Documentation**: Setup guides, troubleshooting
+
+## 📚 Learn More
+
+- **INTEGRATION.md** - Detailed integration documentation
+- **README.md** - Project overview and API reference
+- **Backend API**: http://localhost:8000/docs (Swagger UI)

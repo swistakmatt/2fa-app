@@ -11,15 +11,11 @@ class Settings(BaseSettings):
     Application settings loaded from environment variables.
     """
     model_config = SettingsConfigDict(env_file=".env", extra="allow", case_sensitive=True)
+    
     # Application
     APP_NAME: str = "2FA Application"
     DEBUG: bool = True
     API_V1_PREFIX: str = "/api"
-    
-    model_config = {
-        "env_file": ".env",
-        "case_sensitive": True
-    }
     
     # Database
     DATABASE_URL: str

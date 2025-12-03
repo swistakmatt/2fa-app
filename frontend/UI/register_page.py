@@ -1,5 +1,8 @@
 import streamlit as st
+import asyncio
+import httpx
 from .styles import load_global_styles
+from services.api_handler import api_handler
 
 def register_page():
     st.session_state.page = "register"
@@ -14,15 +17,32 @@ def register_page():
     repeat = st.text_input("Powtórz hasło", type="password")
 
     if st.button("UTWÓRZ KONTO", use_container_width=True):
-        if email:
-            # ZAPISUJEMY EMAIL I STRONĘ
-            st.session_state.email = email
-            st.session_state.page = "success_register"
-
-            # Aktualizacja URL
-            st.query_params.update({"page": "success_register", "email": email})
-
-            st.rerun()
+        if not email or not password or not repeat:
+            st.error("Proszę wypełnić wszystkie pola")
+        elif password != repeat:
+            st.error("Hasła nie są identyczne")
+        elif len(password) < 8:
+            st.error("Hasło musi mieć minimum 8 znaków")
+        else:
+            try:
+                # Call backend API
+                response = asyncio.run(api_handler.register(email, password))
+                
+                # Save email and navigate to success page
+                st.session_state.email = email
+                st.session_state.page = "success_register"
+                
+                st.query_params.update({"page": "success_register", "email": email})
+                st.success(response.get("message", "Konto utworzone pomyślnie!"))
+                st.rerun()
+                
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 400:
+                    st.error("Użytkownik z tym adresem email już istnieje")
+                else:
+                    st.error(f"Błąd rejestracji: {e.response.text}")
+            except Exception as e:
+                st.error(f"Błąd połączenia z serwerem: {str(e)}")
 
     st.markdown("""
     <div class='small-links'>

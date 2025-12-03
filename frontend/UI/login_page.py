@@ -1,5 +1,8 @@
 import streamlit as st
+import asyncio
+import httpx
 from .styles import load_global_styles
+from services.api_handler import api_handler
 
 def login_page():
     st.session_state.page = "login"
@@ -13,12 +16,28 @@ def login_page():
     password = st.text_input("Hasło", type="password")
 
     if st.button("ZALOGUJ", use_container_width=True):
-        if email:
-            st.session_state.email = email
-            st.session_state.page = "twofa"
-
-            st.query_params.update({"page": "twofa", "email": email})
-            st.rerun()
+        if not email or not password:
+            st.error("Proszę wypełnić wszystkie pola")
+        else:
+            try:
+                # Call backend API
+                response = asyncio.run(api_handler.login(email, password))
+                
+                # Save tmp_token and email to session
+                st.session_state.tmp_token = response.get("tmp_token")
+                st.session_state.email = email
+                st.session_state.page = "twofa"
+                
+                st.query_params.update({"page": "twofa", "email": email})
+                st.rerun()
+                
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 401:
+                    st.error("Nieprawidłowy email lub hasło")
+                else:
+                    st.error(f"Błąd logowania: {e.response.text}")
+            except Exception as e:
+                st.error(f"Błąd połączenia z serwerem: {str(e)}")
 
     st.markdown("<div class='separator'>lub</div>", unsafe_allow_html=True)
     st.button("Continue with Google", use_container_width=True)

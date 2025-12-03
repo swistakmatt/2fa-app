@@ -54,8 +54,8 @@ services:
     container_name: 2fa_mailhog
     restart: unless-stopped
     ports:
-      - '8025:8025'   # Web UI to view emails
-      - '1025:1025'   # SMTP server used by FastAPI-Mail
+      - '8025:8025' # Web UI to view emails
+      - '1025:1025' # SMTP server used by FastAPI-Mail
     networks:
       - 2fa_network
 
@@ -66,16 +66,36 @@ services:
     container_name: 2fa_backend
     restart: unless-stopped
     env_file:
-      - .env
+      - backend/.env
     ports:
       - '8000:8000'
     depends_on:
-      - postgres
-      - redis
-      - mailhog
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
     networks:
       - 2fa_network
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: 2fa_frontend
+    restart: unless-stopped
+    env_file:
+      - ./frontend/.env
+    ports:
+      - '8501:8501'
+    depends_on:
+      - backend
+    networks:
+      - 2fa_network
+    volumes:
+      - ./frontend:/app
 
 volumes:
   postgres_data:

@@ -1,6 +1,9 @@
 import streamlit as st
 import streamlit.components.v1 as components
+import asyncio
+import httpx
 from .styles import load_global_styles
+from services.api_handler import api_handler
 
 def twofa_page(email="", timer_start=90):
 
@@ -39,12 +42,37 @@ def twofa_page(email="", timer_start=90):
     if st.button("WERYFIKUJ", use_container_width=True):
         code = "".join(st.session_state.get(f"pin_{i}", "") for i in range(6))
 
-        if len(code) == 6:
-            st.session_state.page = "profile"
-            st.query_params.update({"page": "profile", "email": email})
-            st.rerun()
-        else:
+        if len(code) != 6:
             st.error("Kod PIN musi mieć 6 cyfr.")
+        else:
+            # Get tmp_token from session
+            tmp_token = st.session_state.get("tmp_token")
+            if not tmp_token:
+                st.error("Brak tokenu sesji. Zaloguj się ponownie.")
+            else:
+                try:
+                    # Verify 2FA code with backend
+                    response = asyncio.run(api_handler.verify_2fa(tmp_token, code))
+                    
+                    # Save JWT access token to session
+                    st.session_state.access_token = response.get("access_token")
+                    st.session_state.page = "profile"
+                    
+                    st.query_params.update({"page": "profile", "email": email})
+                    st.success("Weryfikacja udana!")
+                    st.rerun()
+                    
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code == 400:
+                        st.error("Nieprawidłowy kod weryfikacyjny")
+                    elif e.response.status_code == 401:
+                        st.error("Token wygasł. Zaloguj się ponownie.")
+                    elif e.response.status_code == 403:
+                        st.error("Zbyt wiele prób. Konto tymczasowo zablokowane.")
+                    else:
+                        st.error(f"Błąd weryfikacji: {e.response.text}")
+                except Exception as e:
+                    st.error(f"Błąd połączenia z serwerem: {str(e)}")
 
     # TUTAJ CI ZNIKAŁ „WYŚLIJ KOD PONOWNIE” – PRZYWRACAM
     st.markdown(f"""
