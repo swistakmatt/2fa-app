@@ -1,0 +1,68 @@
+import jwt
+from datetime import datetime, timedelta
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+from app.core.config import settings
+from app.models.user import User
+from app.core.security import get_password_hash
+
+conf = ConnectionConfig(
+    MAIL_USERNAME=settings.MAIL_USERNAME,
+    MAIL_PASSWORD=settings.MAIL_PASSWORD,
+    MAIL_FROM=settings.MAIL_FROM,
+    MAIL_PORT=settings.MAIL_PORT,
+    MAIL_SERVER=settings.MAIL_SERVER,
+    MAIL_STARTTLS=settings.MAIL_STARTTLS,
+    MAIL_SSL_TLS=settings.MAIL_SSL_TLS,
+    USE_CREDENTIALS=True,
+)
+
+fm = FastMail(conf)
+
+def generate_reset_token(user_id: int) -> str:
+    payload = {
+        "user_id": user_id,
+        "type": "reset",
+        "exp": datetime.now() + timedelta(minutes=15)
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+
+async def send_reset_email(email: str, db: Session):
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        return  
+
+    token = generate_reset_token(user.id)
+    link = f"{settings.FRONTEND_URL}?page=reset&token={token}"
+
+    body = f"Kliknij aby zresetować hasło:\n\n{link}"
+
+    msg = MessageSchema(
+        subject="Reset hasła",
+        recipients=[email],
+        body=body,
+        subtype="plain"
+    )
+
+    await fm.send_message(msg)
+
+
+def reset_user_password(token: str, new_password: str, db: Session):
+    try:
+        decoded = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+    except:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    if decoded.get("type") != "reset":
+        raise HTTPException(status_code=400, detail="Invalid token type")
+
+    user_id = decoded.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.hashed_password = get_password_hash(new_password)
+    db.commit()

@@ -43,16 +43,17 @@ class UserResponse(UserBase):
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
-    
+    backup_generated: bool
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class UserInDB(UserBase):
     """Schema for user from database (with password hash)."""
     id: int
-    hashed_password: str
+    hashed_password: Optional[str] = None
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
-    
+    backup_generated: bool
     model_config = ConfigDict(from_attributes=True)

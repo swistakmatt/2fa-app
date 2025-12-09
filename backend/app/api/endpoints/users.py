@@ -79,13 +79,10 @@ async def update_profile(
     - If no parameters provided, current data is returned
     - New email must be unique in the system
     """
-    # Check if there's any data to update
     if not user_update.email and not user_update.password:
         return current_user
     
-    # Update email
     if user_update.email and user_update.email != current_user.email:
-        # Check if new email is not already taken
         existing_user = db.query(User).filter(
             User.email == user_update.email,
             User.id != current_user.id
@@ -99,7 +96,6 @@ async def update_profile(
         
         current_user.email = user_update.email
     
-    # Update password
     if user_update.password:
         current_user.hashed_password = get_password_hash(user_update.password)
     
@@ -132,12 +128,7 @@ async def delete_account(
     **Alternative:** Account deactivation instead of deletion
     (setting is_active = False)
     """
-    # Option 1: Complete user deletion
     db.delete(current_user)
     db.commit()
-    
-    # Option 2 (recommended): Account deactivation
-    # current_user.is_active = False
-    # db.commit()
     
     return {"message": "Account successfully deleted"}

@@ -49,16 +49,6 @@ services:
     volumes:
       - redis_data:/data
 
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: 2fa_mailhog
-    restart: unless-stopped
-    ports:
-      - '8025:8025' # Web UI to view emails
-      - '1025:1025' # SMTP server used by FastAPI-Mail
-    networks:
-      - 2fa_network
-
   backend:
     build:
       context: .
@@ -74,16 +64,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-      mailhog:
-        condition: service_started
     networks:
       - 2fa_network
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
-
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
     container_name: 2fa_frontend
     restart: unless-stopped
     env_file:
@@ -96,6 +82,7 @@ services:
       - 2fa_network
     volumes:
       - ./frontend:/app
+    command: sh -c "streamlit run app.py --server.port=8501 --server.address=0.0.0.0"
 
 volumes:
   postgres_data:

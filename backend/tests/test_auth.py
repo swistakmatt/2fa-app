@@ -26,7 +26,6 @@ class TestRegistration:
     
     def test_register_duplicate_email(self, client):
         """Test registration with already existing email."""
-        # First, register a user
         client.post(
             "/api/auth/register",
             json={
@@ -35,7 +34,6 @@ class TestRegistration:
             }
         )
         
-        # Attempt to register again with the same email
         response = client.post(
             "/api/auth/register",
             json={
@@ -77,7 +75,6 @@ class TestLogin:
     
     def test_login_success(self, client):
         """Test successful login."""
-        # First, register a user
         client.post(
             "/api/auth/register",
             json={
@@ -86,7 +83,6 @@ class TestLogin:
             }
         )
         
-        # Log in
         response = client.post(
             "/api/auth/login",
             json={
@@ -104,7 +100,6 @@ class TestLogin:
     
     def test_login_wrong_password(self, client):
         """Test login with incorrect password."""
-        # Register a user
         client.post(
             "/api/auth/register",
             json={
@@ -113,7 +108,6 @@ class TestLogin:
             }
         )
         
-        # Attempt to login with wrong password
         response = client.post(
             "/api/auth/login",
             json={

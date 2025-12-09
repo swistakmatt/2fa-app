@@ -20,7 +20,6 @@ def load_global_styles():
     <style>
     {bg_css}
 
-    /* wrapper centrujący całą kartę na środku ekranu */
     .center-wrapper {{
         display: flex;
         justify-content: center;
@@ -28,8 +27,7 @@ def load_global_styles():
         height: auto;
     }}
 
-    /* główne białe pudełko */
-    .main .block-container {{
+    .stMainBlockContainer > div {{
         width: 550px;                
         min-height: 320px;           
         margin: 25vh auto 0 auto;    
@@ -39,21 +37,19 @@ def load_global_styles():
         box-shadow: 0 4px 25px rgba(0,0,0,0.35);
     }}
 
-    /* tytuł */
     .login-title {{
         text-align: center;
-        font-size: 31px;
+        font-size: 301px;   /* WRACA DO TWOJEGO STANU */
         font-weight: 600;
+        color: #0b2c57 !important;
     }}
 
-    /* separator 'lub' */
     .separator {{
         text-align: center;
         margin: 9px 0 20px 0;
         font-size: 17px;
     }}
 
-    /* linki dolne */
     .small-links {{
         margin-top: 20px;
         text-align: center;
@@ -69,7 +65,6 @@ def load_global_styles():
         text-decoration: underline;
     }}
 
-    /* całe inputy */
     div[data-baseweb="input"] > div {{
         background-color: #e6eef8;
         font-size: 15px;
@@ -79,14 +74,13 @@ def load_global_styles():
     .st-by {{
         padding-right: 0 !important;
     }}
-    
-    /* normalny hover zamiast czerwonego */
+
     .stButton > button:hover {{
         background-color: #0b2c57 !important;
         color: white !important;
         border-color: #0b2c57 !important;
     }}
-    
+
     a[class*='st-emotion-cache'] {{
         display: none !important;
     }}
@@ -96,12 +90,91 @@ def load_global_styles():
         line-height: 1.45rem;
         margin-bottom: 20px;
     }}
-    .activate{{
+
+    .activate {{
         font-size: 0.95rem;
         line-height: 1.45rem;
         margin-bottom: 20px;
-        text-decoration: underline;
+        color: #8B0000;
     }}
-    
+
+    .st-bz {{
+        padding-right: 0;
+    }}
+
+    [data-testid='stMarkdownContainer']:has([class*='link-wrapper']) {{
+        text-align: center !important;
+    }}
+
+    .section-title {{
+        margin-top: 15px;
+        font-size: 17px;
+        font-weight: 600;
+        color: #0b2c57;
+        text-align: left;
+    }}
+
+    .pin-row {{
+        display: flex !important;
+        justify-content: center !important;
+        gap: 12px !important;
+        margin: 10px 0 20px 0;
+    }}
+
+    div[class*='st-key-pin_'] {{
+        display: inline-flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+
+        text-align: center !important;
+        font-size: 22px !important;
+        height: 48px !important;
+        width: 48px !important;
+        border-radius: 6px !important;
+        border: 1px solid #9bb7e0 !important;
+        background: #e6eef8 !important;
+    }}
+
+
+    .btn-stack > div {{
+        margin-bottom: 10px;
+    }}
+
+    .verify-block {{
+        margin-bottom: 20px;
+    }}
+
+    .timer-box {{
+        text-align: center;
+        font-weight: 600;
+        font-size: 17px;
+        margin-bottom: 15px;
+        color: #8B0000;
+    }}
+
+    /* PROFILE PAGE */
+    .profile-icon {{
+        width: 80px;
+        height: 80px;
+        background-image: url("https://cdn-icons-png.flaticon.com/512/847/847969.png");
+        background-size: cover;
+        background-position: center;
+        margin: 10px auto 0 auto;
+        border-radius: 50%;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }}
+
+    .profile-email {{
+        font-size: 18px;
+        font-weight: 600;
+        color: #0b2c57 !important;
+        margin-top: 22px;
+        text-align: left;
+    }}
+
+    div[data-testid='stLayoutWrapper'] {{
+        margin-bottom: 20px !important;
+    }}
+
     </style>
     """

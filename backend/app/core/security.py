@@ -7,7 +7,14 @@ from jose import JWTError, ExpiredSignatureError, jwt
 from passlib.context import CryptContext
 from app.core.config import settings
 
-# Context for password hashing with bcrypt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.models.user import User
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -22,7 +29,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         bool: True if passwords match, False otherwise
     """
-    # Bcrypt has a 72-byte limit - truncate password if longer
     password_bytes = plain_password.encode('utf-8')[:72]
     return pwd_context.verify(password_bytes, hashed_password)
 
@@ -40,7 +46,6 @@ def get_password_hash(password: str) -> str:
     Note:
         Bcrypt has a 72-byte limit. Longer passwords are automatically truncated.
     """
-    # Bcrypt has a 72-byte limit - truncate password if longer
     password_bytes = password.encode('utf-8')[:72]
     return pwd_context.hash(password_bytes)
 
@@ -89,3 +94,26 @@ def decode_access_token(token: str) -> Optional[str]:
         return email
     except JWTError:
         return None
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> User:
+    email = decode_access_token(token)
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    return user

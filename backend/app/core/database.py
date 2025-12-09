@@ -5,17 +5,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
 
-# Create database engine
 engine = create_engine(
     settings.DATABASE_URL,
-    pool_pre_ping=True,  # Check connection before use
-    echo=settings.DEBUG   # Log SQL queries in debug mode
+    pool_pre_ping=True, 
+    echo=settings.DEBUG   
 )
 
-# Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Base class for models
 Base = declarative_base()
 
 

@@ -3,10 +3,12 @@ Main FastAPI application file.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.endpoints import password
 from app.core.config import settings
-from app.api.endpoints import auth, users
+from app.api.endpoints import auth, users, twofa, activate
+from app.api.endpoints.backup_codes import router as backup_router
+from app.api.endpoints.auth import router as auth_router
 
-# Initialize FastAPI application
 app = FastAPI(
     title=settings.APP_NAME,
     description="API for Two-Factor Authentication (2FA) application",
@@ -15,7 +17,6 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -24,7 +25,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register routers
 app.include_router(
     auth.router,
     prefix=f"{settings.API_V1_PREFIX}/auth",
@@ -37,6 +37,19 @@ app.include_router(
     tags=["User"]
 )
 
+app.include_router(
+    twofa.router,
+    prefix=f"{settings.API_V1_PREFIX}/2fa",
+    tags=["2FA"]
+)
+
+app.include_router(activate.router, prefix="/api/auth", tags=["Activation"])
+
+app.include_router(password.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["Authentication"])
+
+app.include_router(backup_router, prefix="/api")
+
+app.include_router(auth_router, prefix="/api/auth")
 
 @app.get("/", tags=["Root"])
 async def root():

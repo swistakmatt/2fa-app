@@ -2,8 +2,11 @@ import streamlit as st
 from .styles import load_global_styles
 
 def success_register_page(email=""):
-    # BLOKUJEMY STRONĘ NA STAŁE
     st.session_state.page = "success_register"
+
+    if not email:
+        email = st.session_state.get("email", "")
+
     st.session_state.email = email
 
     st.markdown(load_global_styles(), unsafe_allow_html=True)

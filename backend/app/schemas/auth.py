@@ -29,6 +29,8 @@ class RegisterResponse(BaseModel):
     id: int = Field(..., description="ID of newly created user")
     email: str = Field(..., description="User email")
     message: str = Field(default="User successfully registered")
+    access_token: str | None = None
+    token_type: str | None = None
 
 
 class ErrorResponse(BaseModel):

@@ -9,158 +9,126 @@ from typing import Optional, Dict, Any
 # Load environment variables
 load_dotenv()
 
-BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000/api")
+BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://backend:8000/api")
+BACKEND_GOOGLE_LOGIN_URL = os.getenv("BACKEND_GOOGLE_LOGIN_URL", "http://localhost:8000/api/auth/google/login")
 
 
 class APIHandler:
-    """Handles all API communication with backend."""
-    
     def __init__(self):
         self.base_url = BACKEND_API_URL
         self.timeout = 10.0
-    
+
+    # ---------------------------------------
+    # AUTH
+    # ---------------------------------------
     async def register(self, email: str, password: str) -> Dict[str, Any]:
-        """
-        Register a new user.
-        
-        Args:
-            email: User email
-            password: User password
-            
-        Returns:
-            Dict with registration response
-            
-        Raises:
-            httpx.HTTPStatusError: If registration fails
-        """
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
+            r = await client.post(
                 f"{self.base_url}/auth/register",
                 json={"email": email, "password": password}
             )
-            response.raise_for_status()
-            return response.json()
-    
+            r.raise_for_status()
+            return r.json()
+
     async def login(self, email: str, password: str) -> Dict[str, Any]:
-        """
-        Login user and trigger 2FA code sending.
-        
-        Args:
-            email: User email
-            password: User password
-            
-        Returns:
-            Dict with tmp_token for 2FA verification
-            
-        Raises:
-            httpx.HTTPStatusError: If login fails
-        """
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
+            r = await client.post(
                 f"{self.base_url}/auth/login",
                 json={"email": email, "password": password}
             )
-            response.raise_for_status()
-            return response.json()
-    
-    async def verify_2fa(self, tmp_token: str, code: str) -> Dict[str, Any]:
-        """
-        Verify 2FA code and get JWT access token.
-        
-        Args:
-            tmp_token: Temporary token from login
-            code: 6-digit verification code
-            
-        Returns:
-            Dict with access_token and token_type
-            
-        Raises:
-            httpx.HTTPStatusError: If verification fails
-        """
+            r.raise_for_status()
+            return r.json()
+
+    # ---------------------------------------
+    # 2FA MAIN
+    # ---------------------------------------
+    async def send_code(self, token: str):
+        headers = {"Authorization": f"Bearer {token}"}
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
-                f"{self.base_url}/auth/verify-2fa",
-                json={"tmp_token": tmp_token, "code": code}
+            r = await client.post(f"{self.base_url}/2fa/send", headers=headers)
+            r.raise_for_status()
+            return r.json()
+
+    async def verify_2fa(self, token: str, code: str):
+        headers = {"Authorization": f"Bearer {token}"}
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            r = await client.post(
+                f"{self.base_url}/2fa/verify",
+                params={"code": code},
+                headers=headers
             )
-            response.raise_for_status()
-            return response.json()
-    
-    async def get_profile(self, access_token: str) -> Dict[str, Any]:
-        """
-        Get user profile data.
-        
-        Args:
-            access_token: JWT access token
-            
-        Returns:
-            Dict with user profile data
-            
-        Raises:
-            httpx.HTTPStatusError: If request fails
-        """
+            r.raise_for_status()
+            return r.json()
+
+    # ---------------------------------------
+    # BACKUP CODES
+    # ---------------------------------------
+    async def verify_backup_code(self, token: str, code: str):
+        headers = {"Authorization": f"Bearer {token}"}
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(
-                f"{self.base_url}/user/profile",
-                headers={"Authorization": f"Bearer {access_token}"}
+            r = await client.post(
+                f"{self.base_url}/2fa/backup/verify",
+                json={"code": code},
+                headers=headers
             )
-            response.raise_for_status()
-            return response.json()
-    
-    async def update_profile(
-        self, 
-        access_token: str, 
-        email: Optional[str] = None,
-        password: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Update user profile.
-        
-        Args:
-            access_token: JWT access token
-            email: New email (optional)
-            password: New password (optional)
-            
-        Returns:
-            Dict with updated user data
-            
-        Raises:
-            httpx.HTTPStatusError: If update fails
-        """
-        data = {}
-        if email:
-            data["email"] = email
-        if password:
-            data["password"] = password
-            
+            r.raise_for_status()
+            return r.json()
+
+    async def get_backup_count(self, token: str):
+        headers = {"Authorization": f"Bearer {token}"}
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.put(
+            r = await client.get(f"{self.base_url}/2fa/backup/list", headers=headers)
+            r.raise_for_status()
+            return r.json()
+
+    async def reset_backup_codes(self, token: str):
+        headers = {"Authorization": f"Bearer {token}"}
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            r = await client.post(f"{self.base_url}/2fa/backup/reset", headers=headers)
+            r.raise_for_status()
+            return r.json()
+
+    # ---------------------------------------
+    # PROFILE
+    # ---------------------------------------
+    async def get_profile(self, token: str):
+        headers = {"Authorization": f"Bearer {token}"}
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            r = await client.get(f"{self.base_url}/user/profile", headers=headers)
+            r.raise_for_status()
+            return r.json()
+
+    async def update_profile(self, token: str, **data):
+        headers = {"Authorization": f"Bearer {token}"}
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            r = await client.put(
                 f"{self.base_url}/user/update",
-                headers={"Authorization": f"Bearer {access_token}"},
-                json=data
+                json=data,
+                headers=headers
             )
-            response.raise_for_status()
-            return response.json()
-    
-    async def delete_profile(self, access_token: str) -> Dict[str, Any]:
-        """
-        Delete user account.
-        
-        Args:
-            access_token: JWT access token
-            
-        Returns:
-            Dict with deletion confirmation
-            
-        Raises:
-            httpx.HTTPStatusError: If deletion fails
-        """
+            r.raise_for_status()
+            return r.json()
+
+    # ---------------------------------------
+    # PASSWORD RESET
+    # ---------------------------------------
+    async def send_reset_link(self, email: str):
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.delete(
-                f"{self.base_url}/user/delete",
-                headers={"Authorization": f"Bearer {access_token}"}
+            r = await client.post(f"{self.base_url}/auth/password/reset-request", json={"email": email})
+            r.raise_for_status()
+            return r.json()
+
+    async def reset_password(self, token: str, new_password: str):
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            r = await client.post(
+                f"{self.base_url}/auth/password/reset",
+                json={"token": token, "new_password": new_password}
             )
-            response.raise_for_status()
-            return response.json()
+            r.raise_for_status()
+            return r.json()
+
+    def get_google_login_url(self):
+        return BACKEND_GOOGLE_LOGIN_URL
 
 
 # Singleton instance

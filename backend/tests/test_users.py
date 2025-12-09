@@ -10,7 +10,6 @@ class TestUserProfile:
     
     def test_get_profile_success(self, client):
         """Test retrieving profile of a logged-in user."""
-        # Register a user
         client.post(
             "/api/auth/register",
             json={
@@ -19,7 +18,6 @@ class TestUserProfile:
             }
         )
         
-        # Log in
         login_response = client.post(
             "/api/auth/login",
             json={
@@ -29,7 +27,6 @@ class TestUserProfile:
         )
         token = login_response.json()["access_token"]
         
-        # Retrieve profile
         response = client.get(
             "/api/user/profile",
             headers={"Authorization": f"Bearer {token}"}
@@ -62,7 +59,6 @@ class TestUserUpdate:
     
     def test_update_email(self, client):
         """Test updating email."""
-        # Registration and login
         client.post(
             "/api/auth/register",
             json={"email": "test@example.com", "password": "testpassword123"}
@@ -73,7 +69,6 @@ class TestUserUpdate:
         )
         token = login_response.json()["access_token"]
         
-        # Update email
         response = client.put(
             "/api/user/update",
             headers={"Authorization": f"Bearer {token}"},
@@ -85,7 +80,6 @@ class TestUserUpdate:
     
     def test_update_password(self, client):
         """Test updating password."""
-        # Registration and login
         client.post(
             "/api/auth/register",
             json={"email": "test@example.com", "password": "oldpassword123"}
@@ -96,7 +90,6 @@ class TestUserUpdate:
         )
         token = login_response.json()["access_token"]
         
-        # Update password
         response = client.put(
             "/api/user/update",
             headers={"Authorization": f"Bearer {token}"},
@@ -105,7 +98,6 @@ class TestUserUpdate:
         
         assert response.status_code == status.HTTP_200_OK
         
-        # Check if login with new password works
         login_response = client.post(
             "/api/auth/login",
             json={"email": "test@example.com", "password": "newpassword123"}

@@ -4,94 +4,77 @@ import httpx
 from .styles import load_global_styles
 from services.api_handler import api_handler
 
+
 def profile_page(email=""):
     st.session_state.page = "profile"
     st.markdown(load_global_styles(), unsafe_allow_html=True)
 
-    st.markdown("<div class='center-wrapper'>", unsafe_allow_html=True)
-    st.markdown("<h2 class='login-title'>PANEL UŻYTKOWNIKA</h2>", unsafe_allow_html=True)
-
-    # Check if user is authenticated
     access_token = st.session_state.get("access_token")
     if not access_token:
         st.error("Brak autoryzacji. Zaloguj się ponownie.")
-        if st.button("Powrót do logowania"):
-            st.session_state.page = "login"
-            st.query_params.update({"page": "login"})
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
         return
-    
-    # Fetch user data from backend
+
     try:
         user_data = asyncio.run(api_handler.get_profile(access_token))
         email = user_data.get("email", email)
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 401:
-            st.error("Sesja wygasła. Zaloguj się ponownie.")
-            st.session_state.clear()
-            if st.button("Powrót do logowania"):
-                st.query_params.update({"page": "login"})
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
-            return
-        else:
-            st.error(f"Błąd pobierania danych: {e.response.text}")
-    except Exception as e:
-        st.error(f"Błąd połączenia z serwerem: {str(e)}")
+    except Exception:
+        st.error("Sesja wygasła. Zaloguj się ponownie.")
+        st.session_state.clear()
+        return
 
-    # nowy układ 2 kolumn (lewa węższa, prawa szersza)
-    cols = st.columns([1.2, 3])
+    backup_generated = user_data.get("backup_generated", False)
+    if not backup_generated:
+        st.warning("Nie masz jeszcze kodów zapasowych. "
+                   "Zaloguj się poprawnie kodem 2FA, aby je wygenerować.")
+        return
 
-    # LEWA kolumna (avatar + email)
-    with cols[0]:
-        st.markdown("""
-            <div style="text-align:center; margin-top:20px;">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/9/99/Sample_User_Icon.png"
-                     width="110" style="border-radius:50%; margin-bottom:10px;">
-                <br>
-                <a href="#" style="font-size:0.9rem; color:#555;">Zmień zdjęcie profilowe</a>
-            </div>
-        """, unsafe_allow_html=True)
+    st.markdown("<div class='center-wrapper'>", unsafe_allow_html=True)
+    st.markdown("<h2 class='login-title'>PANEL UŻYTKOWNIKA</h2>", unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
+    col_icon, col_email = st.columns([1, 3])
 
-        st.text_input("Adres email", value=email, disabled=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        if st.button("Wyloguj", use_container_width=True):
-            st.session_state.clear()
-            st.query_params.update({"page": "login"})
-            st.rerun()
+    with col_icon:
+        st.markdown(
+            "<div class='profile-icon'></div>",
+            unsafe_allow_html=True
+        )
 
-    # PRAWA kolumna (pola użytkownika)
-    with cols[1]:
-        c1, c2 = st.columns(2)
-        with c1:
-            first_name = st.text_input("Imię")
-        with c2:
-            last_name = st.text_input("Nazwisko")
+    with col_email:
+        st.markdown(
+            f"<div class='profile-email'>{email}</div>",
+            unsafe_allow_html=True
+        )
 
-        street = st.text_input("Ulica")
+    if st.button("Wyloguj", use_container_width=True):
+        st.session_state.clear()
+        st.query_params.update({"page": "login"})
+        st.rerun()
 
-        c3, c4 = st.columns(2)
-        with c3:
-            city = st.text_input("Miasto")
-        with c4:
-            postal_code = st.text_input("Kod pocztowy")
+    st.markdown("<hr>", unsafe_allow_html=True)
 
-        c5, c6 = st.columns(2)
-        with c5:
-            birth_date = st.text_input("Data urodzenia")
-        with c6:
-            phone = st.text_input("Telefon")
+    st.markdown("<h3>Kody zapasowe 2FA</h3>", unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
+    count_resp = asyncio.run(api_handler.get_backup_count(access_token))
+    available_count = count_resp.get("available", 0)
 
-        if st.button("Zmień dane użytkownika"):
-            st.info("Funkcja aktualizacji dodatkowych danych będzie dostępna wkrótce")
-            # TODO: Implement user data update when backend supports it
+    st.write(f"Dostępnych: {available_count}")
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    backup_codes = st.session_state.get("backup_codes", [])
+
+    if backup_codes:
+        st.write("Ostatnio wygenerowane:")
+        for code in backup_codes:
+            st.code(code)
+
+    if st.button("GENERUJ NOWE KODY", use_container_width=True):
+        resp = asyncio.run(api_handler.reset_backup_codes(access_token))
+        st.session_state["backup_codes"] = resp.get("backup_codes", [])
+        st.success("Wygenerowano nowe kody")
+        st.rerun()
+
+    if available_count == 0:
+        st.warning("Nie masz żadnych kodów zapasowych. Wygeneruj nowe.")
+
+    st.warning("Przechowuj kody offline. Nie udostępniaj ich nikomu.")
+
     st.markdown("</div>", unsafe_allow_html=True)

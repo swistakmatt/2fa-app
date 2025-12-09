@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 # Import settings and models
 from app.core.config import settings
 from app.core.database import Base
-from app.models.user import User  # Import all models
+from app.models.user import User
 
 # this is the Alembic Config object
 config = context.config
