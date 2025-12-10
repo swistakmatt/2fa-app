@@ -44,14 +44,14 @@ class Settings(BaseSettings):
     
     TMP_TOKEN_EXPIRE_MINUTES: int = 5
 
-    GOOGLE_AUTH_URL: str
-    GOOGLE_TOKEN_URL: str
-    GOOGLE_USERINFO_URL: str
-    GOOGLE_SCOPE: str
-    GOOGLE_CLIENT_ID: str
-    GOOGLE_CLIENT_SECRET: str
-    GOOGLE_REDIRECT_URI: str
-    FRONTEND_BASE_URL: str
+    GOOGLE_AUTH_URL: str = "https://accounts.google.com/o/oauth2/v2/auth"
+    GOOGLE_TOKEN_URL: str = "https://oauth2.googleapis.com/token"
+    GOOGLE_USERINFO_URL: str = "https://www.googleapis.com/oauth2/v2/userinfo"
+    GOOGLE_SCOPE: str = "openid email profile"
+    GOOGLE_CLIENT_ID: str = "test_client_id"
+    GOOGLE_CLIENT_SECRET: str = "test_client_secret"
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
+    FRONTEND_BASE_URL: str = "http://localhost:8501"
 
     REDIS_URL: Optional[AnyUrl] = None
     

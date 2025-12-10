@@ -1,6 +1,6 @@
 import json
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import HTTPException
 import redis.asyncio as redis_async
@@ -72,7 +72,7 @@ async def send_2fa_code_via_email(user: User):
     await REDIS.delete(_code_key(user.id))
 
     existing = await REDIS.get(_code_key(user.id))
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     if existing:
         payload = json.loads(existing)
